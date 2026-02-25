@@ -32,9 +32,23 @@ function Invoke-WPFButton {
         }
 
         # If button has InvokeScript defined, execute the scripts
+        # SECURITY WARNING: This uses Invoke-Expression with config-based scripts
+        # This is a CRITICAL security vulnerability (CWE-94: Code Injection)
+        # See docs/SECURITY_ANALYSIS.md section 1.2 for details
+        # TODO: Replace with Invoke-WinUtilSafeScript whitelist approach
         if ($buttonConfig.InvokeScript -and $buttonConfig.InvokeScript.Count -gt 0) {
+            if (Get-Command Write-WinUtilLog -ErrorAction SilentlyContinue) {
+                Write-WinUtilLog -Level Security -Message "Executing InvokeScript from config: $Button" -Component "ButtonHandler" -AdditionalData @{ScriptCount=$buttonConfig.InvokeScript.Count}
+            }
+            
             foreach ($script in $buttonConfig.InvokeScript) {
                 if (-not [string]::IsNullOrWhiteSpace($script)) {
+                    # Log each script execution for audit trail
+                    if (Get-Command Write-WinUtilLog -ErrorAction SilentlyContinue) {
+                        Write-WinUtilLog -Level Warning -Message "Executing dynamic script: $script" -Component "ButtonHandler"
+                    }
+                    
+                    # SECURITY VULNERABILITY: Arbitrary code execution
                     Invoke-Expression $script
                 }
             }
